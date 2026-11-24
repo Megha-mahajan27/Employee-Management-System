@@ -4,6 +4,8 @@ package com.jsp.ems.entity;
 
 import java.time.LocalDateTime;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -31,6 +33,8 @@ public class User {
 	
 	@Size(min=6, message = "Password should have minimum 6 characters")
 	private String password;
+	
+	
 	
 	private String role;
 	private boolean verified;

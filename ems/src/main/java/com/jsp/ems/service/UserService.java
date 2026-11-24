@@ -1,6 +1,7 @@
 package com.jsp.ems.service;
 
 
+
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -14,47 +15,55 @@ import com.jsp.ems.util.OtpGenerator;
 
 @Service
 public class UserService {
-	
-	private UserRepository ur;
-	private EmailService es;
-	private PasswordEncoder passwordEncoder;
 
-	
-	
-	
-	
-	public UserService(UserRepository ur, EmailService es, PasswordEncoder passwordEncoder) {
-		this.ur = ur;
-		this.es = es;
-		this.passwordEncoder=passwordEncoder;
-	}
+    private UserRepository ur;
+    private EmailService es;
+    private PasswordEncoder passwordEncoder;
 
-	public String register(RegisterRequest rr) {
-		Optional<User>ou=ur.findByEmail(rr.getEmail());
-		if(ou.isPresent()) {
-			return "email_id already exists";
-		}else {
-			User user=new User();
-			user.setName(rr.getName());
-			user.setEmail(rr.getEmail());
-			user.setPassword(passwordEncoder.encode(rr.getPassword()));
-			user.setPassword(rr.getPassword());
-			user.setRole("USER_ROLE");
-			user.setVerified(false);
-			String otp=OtpGenerator.generateOtp();
-			user.setOtp(otp);
-			user.setOtpexpirytime(LocalDateTime.now().plusMinutes(5));
-			ur.save(user);
-			
-			es.sendOtp(rr.getEmail(),otp);
-			return "please check your email for otp";
-			
-			
-		}
-	}
+    public UserService(
+            UserRepository ur,
+            EmailService es,
+            PasswordEncoder passwordEncoder) {
 
-	
-	
-	
+        this.ur = ur;
+        this.es = es;
+        this.passwordEncoder = passwordEncoder;
+    }
 
+    public String register(RegisterRequest rr) {
+
+        Optional<User> ou = ur.findByEmail(rr.getEmail());
+
+        if (ou.isPresent()) {
+            return "email_id already exists";
+        } else {
+
+            User user = new User();
+
+            user.setName(rr.getName());
+            user.setEmail(rr.getEmail());
+
+            // Encrypt password using BCrypt
+            user.setPassword(
+                passwordEncoder.encode(rr.getPassword())
+            );
+
+            user.setRole("USER");
+            user.setVerified(false);
+
+            String otp = OtpGenerator.generateOtp();
+
+            user.setOtp(otp);
+            user.setOtpexpirytime(
+                LocalDateTime.now().plusMinutes(5)
+            );
+
+            ur.save(user);
+
+            es.sendOtp(rr.getEmail(), otp);
+
+            return "please check your email for otp";
+        }
+    }
 }
+

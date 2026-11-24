@@ -1,55 +1,125 @@
 package com.jsp.ems.Configuration;
 
+
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
+
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import com.jsp.ems.security.JwtAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-	
-	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http) {
-		
-		http.
-		csrf(csrf->csrf.disable()).
-		authorizeHttpRequests(auth->auth.
-				requestMatchers("/users/register","/users/verify-otp").permitAll().
-				requestMatchers(HttpMethod.GET,"/employees/**").hasAnyRole("ADMIN","USER").
-				requestMatchers("/employees/**").hasRole("ADMIN").
-				requestMatchers("/employee/**").authenticated().
-				anyRequest().authenticated()
-	).
-	httpBasic(Customizer.withDefaults());
-	
-	return http.build();	
-	}
-      @Bean
-      UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-    	  UserDetails admin=User.
-    			            withUsername("admin").
-    			            password(passwordEncoder.encode("admin123")).
-    			            roles("ADMIN").build();
-    	  
 
+    @Autowired
+    private JwtAuthenticationFilter jwtFilter;
 
-      UserDetails user=User.
-	            withUsername("user").
-	            password(passwordEncoder.encode("user123")).
-	            roles("USER").build();
-      return new InMemoryUserDetailsManager(admin,user);
+    @Autowired
+    private UserDetailsService userDetailsService;
 
+    // Password encryption
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
+    // Authentication provider
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+
+        DaoAuthenticationProvider provider =
+                new DaoAuthenticationProvider(userDetailsService);
+
+        provider.setPasswordEncoder(passwordEncoder());
+
+        return provider;
+    }
+
+    // Authentication manager
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config) throws Exception {
+
+        return config.getAuthenticationManager();
+    }
+
+    // Security configuration
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http) throws Exception {
+
+        http
+            // Disable CSRF for REST APIs
+            .csrf(csrf -> csrf.disable())
+
+            // JWT is stateless
+            .sessionManagement(session ->
+                session.sessionCreationPolicy(
+                    SessionCreationPolicy.STATELESS
+                )
+            )
+
+            // URL authorization
+            .authorizeHttpRequests(auth -> auth
+
+                // Public APIs - no JWT required
+                .requestMatchers(
+                    "/user/register",
+                    "/user/verify-otp",
+                    "/auth/**",
+                    "/error"
+                ).permitAll()
+
+                // GET employee APIs
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/employees/**"
+                ).hasAnyRole("ADMIN", "USER")
+
+                // Other employee APIs - ADMIN only
+                .requestMatchers(
+                    "/employees/**"
+                ).hasRole("ADMIN")
+
+                // Employee APIs - authenticated users
+                .requestMatchers(
+                    "/employee/**"
+                ).authenticated()
+
+                // All remaining APIs require authentication
+                .anyRequest().authenticated()
+            )
+
+            // Authentication provider
+            .authenticationProvider(authenticationProvider())
+
+            // JWT filter
+            .addFilterBefore(
+                jwtFilter,
+                UsernamePasswordAuthenticationFilter.class
+            );
+
+        return http.build();
+    }
 }
-      }
-      
+
+
+
+
+
 
